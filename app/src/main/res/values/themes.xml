@@ -1,0 +1,4 @@
+<resources>
+    <!-- MainActivity extends AppCompatActivity, so the theme must be an AppCompat theme. -->
+    <style name="Theme.NightSkyWings" parent="Theme.AppCompat.DayNight.NoActionBar" />
+</resources>
