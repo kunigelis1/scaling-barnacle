@@ -1,9 +1,9 @@
 # Handoff: Night Sky & Wings
 
-Status as of 2026-11-06: the source is complete and the JVM unit tests pass, but **the app has not
-yet been built with Android Studio or run on a phone**. The build environment used to write it could
-not reach Google's servers (see [Checks](#checks-run-and-not-run)). The first Android Studio sync and
-run is the next step.
+Status as of 2026-11-06: the project **builds, passes lint and passes its unit tests** with the real
+Android toolchain (AGP 8.7.3, compileSdk 35), and produces a debug APK. It has **not been run on a
+phone or emulator**, so none of its actual behaviour — screen, notifications, background jobs,
+location — has been observed yet. That is the next step.
 
 ## What the app does
 
@@ -100,10 +100,11 @@ Done:
 - All features from the design doc, as a complete Android Studio project with Gradle wrapper.
 - The fixes listed below.
 - 16 JVM unit tests for moon phase, all JSON parsing and schedule-time maths.
+- Verified: `lintDebug`, `testDebugUnitTest` and `assembleDebug` all pass; a debug APK is produced.
 
 Not done:
-- Not yet built with the Android Gradle Plugin, linted, or run on a device or emulator.
-- No instrumented (on-device) tests; the workers, notifications and UI are untested.
+- Never run on a device or emulator; no behaviour has been observed.
+- No instrumented (on-device) tests; the workers, notifications and UI are untested at runtime.
 - No app icon (uses the Android default) and no layout/Compose UI; the screen is built in code.
 - Package name is `com.example.nightskywings`. Change it before any Play Store release.
 
@@ -120,6 +121,9 @@ Not done:
 - **Moon model** uses the mean lunar cycle, so phase names can be about a day off. Fine for tips.
 - **Wikipedia text** is a page summary, not a short fact, and is English only.
 - **WorkManager timing** is approximate: Android may run jobs late, especially on battery saver.
+- **UI strings are hardcoded English.** Lint reports 6 `SetTextI18n` warnings in `MainActivity.kt`.
+  Only the bird names are bilingual; the surrounding labels ("Play song", "Loading bird of the day")
+  are English literals. Move them to `strings.xml` if you ever want a Lithuanian interface.
 - **Rare-bird memory** (`seen_rare`) grows without limit. Small in practice; could be trimmed to recent dates.
 - Library versions (AGP 8.7.3, compileSdk 35, AndroidX) were picked as known-good, not latest.
   Android Studio may suggest upgrades; they're optional.
@@ -142,10 +146,23 @@ Not done:
 
 ## Checks run and not run
 
-| Check | Result |
-| --- | --- |
-| JVM unit tests (16) for `MoonPhase`, `Parsers`, `TimeMath`, compiled together with `Net.kt`, warnings as errors | Passed, run with Kotlin 2.0.21 in a separate JVM Gradle project |
-| Android Gradle build (`assembleDebug`), lint, `testDebugUnitTest` via AGP | **Not run**: `dl.google.com` and `maven.google.com` (Android SDK and AndroidX) were blocked by the build environment's network policy |
-| Compiling the Android-dependent files (`MainActivity`, workers, `Notifier`, `Location`, `BirdApi`, `BirdMedia`, `Scheduler`, `Config`) | **Not run**, same reason |
-| Live calls to Open-Meteo, eBird, Wikipedia, Xeno-canto | **Not run**: hosts blocked by the same policy. The parsers were tested on sample responses in the documented formats |
-| Running on a device | **Not run** |
+| Check | Result | Where |
+| --- | --- | --- |
+| `assembleDebug` (full Android build, AGP 8.7.3, compileSdk 35) | **Passed**, produced a 5.2 MB debug APK | Linux CI container, SDK 35 + build-tools 35.0.0 |
+| `testDebugUnitTest` (16 tests, 3 classes) | **Passed**, 0 failures, 0 errors | same |
+| `lintDebug` | **Passed**: 0 errors, 11 warnings | same |
+| JVM unit tests compiled with warnings-as-errors | Passed | separate JVM Gradle project |
+| Running on a device or emulator | **Not run** | — |
+| Live calls to Open-Meteo, eBird, Wikipedia, Xeno-canto | **Not run**: Open-Meteo and Wikipedia rate-limited (HTTP 429) from the build machine; eBird needs a key; Xeno-canto docs are behind an anti-scraping gate | — |
+
+The 11 lint warnings are all benign: 5 say newer library versions exist (optional upgrades) and 6 are
+the `SetTextI18n` hardcoded-string warnings described under Known issues. None block anything.
+
+Reproduce the build on any machine with the Android SDK installed:
+
+```
+./gradlew lintDebug testDebugUnitTest assembleDebug
+```
+
+Note: Maven Central intermittently answers HTTP 429 to CI machines. If the build fails with 429
+while downloading a library, just run it again — it is a rate limit, not a code problem.
