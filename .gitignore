@@ -1,0 +1,12 @@
+# Gradle / Android Studio
+.gradle/
+build/
+/captures
+.externalNativeBuild/
+.cxx/
+*.iml
+.idea/
+.DS_Store
+
+# Machine-specific SDK path and private API keys. Never commit this file.
+local.properties
